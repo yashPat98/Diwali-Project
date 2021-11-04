@@ -1,0 +1,25 @@
+# Blender MTL File: 'None'
+# Material Count: 2
+
+newmtl Bark_Mat
+Ns 2000.999996
+Ka 1.000000 1.000000 1.000000
+Kd 0.46531 0.363760 0.226291
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd Sample_Bark_2.jpg
+map_Ks Sample_Bark_2_AO.jpg
+
+newmtl Bodhi_front_2_Mat
+Ns 1500.999996
+Ka 1.000000 1.000000 1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 1.000000 1.000000 1.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd bodhi.png

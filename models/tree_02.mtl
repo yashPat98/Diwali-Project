@@ -1,0 +1,29 @@
+# Blender MTL File: 'None'
+# Material Count: 2
+
+newmtl bark.001
+Ns 10.000002
+Ka 1.000000 1.000000 1.000000
+Kd 0.588200 0.588200 0.588200
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Bump oaktree1_bark_Height.jpeg
+map_Kd oaktree1_bark_BaseColor.jpeg
+map_Ks oaktree1_bark_Roughness.jpeg
+
+newmtl branches_projection.001
+Ns 10.000002
+Ka 1.000000 1.000000 1.000000
+Kd 0.588200 0.588200 0.588200
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 1
+map_Bump leaf_normal.jpeg
+map_Kd leaf_mask.jpeg
+map_Ks leaf_metalness.jpeg
+map_d leaf_alpha.jpeg
