@@ -14,6 +14,7 @@
 #pragma comment(lib, "user32.lib")
 #pragma comment(lib, "gdi32.lib")
 #pragma comment(lib, "kernel32.lib")
+#pragma comment(lib, "winmm.lib")
 #pragma comment(lib, "glew32.lib")
 #pragma comment(lib, "OpenGL32.lib")
 #pragma comment(lib, "assimp-vc142-mt.lib")
@@ -121,8 +122,13 @@ Model House;
 Model Panti;
 Model Tree;
 
-Camera camera(vec3(0.0f, 0.0f, 0.0f));
+//Camera camera(vec3(0.0f, 0.0f, 0.0f));
+Camera camera(vec3(3.046319f, 0.7556598f, -4.304129f));
 GLfloat initial_val_Zoom = 0.0f;
+
+bool startAnim = false;
+
+#include "include/transition.h"
 
 //windows entry point function
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLine, int iCmdShow)
@@ -130,6 +136,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
     //function declarations
     void Initialize(void);                                      //initialize OpenGL state machine
     void Display(void);                                         //render scene
+    void ToggleFullscreen(void);
 
     //variable declarations
     WNDCLASSEX wndclass;                                        //structure holding window class attributes
@@ -202,6 +209,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpszCmdLi
     ShowWindow(hwnd, iCmdShow);                 //set specified window's show state
     SetForegroundWindow(hwnd);                  //brings the thread that created the specified window to foreground
     SetFocus(hwnd);                             //set the keyboard focus to specified window 
+    ToggleFullscreen();
 
     //game loop
     while(bDone == false)
@@ -312,6 +320,20 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lParam)
                 case 'S':
                 case 's':
                     camera.ProcessKeyboard(BACKWARD);
+                    break;
+
+                case 'p':
+                case 'P':
+                    fprintf(gpFile, "CAMERA VALUES .\n");
+                    fprintf(gpFile, "CAMERA POSITION %f, %f, %f.\n",camera.Position[0], camera.Position[1], camera.Position[2]);
+                    fprintf(gpFile, "CAMERA CENTER %f, %f, %f.\n",camera.Front[0], camera.Front[1], camera.Front[2]);
+                    fprintf(gpFile, "CAMERA UP %f, %f, %f.\n",camera.Up[0], camera.Up[1], camera.Up[2] );
+                    fflush(gpFile);
+                    break;
+
+                case 'g':
+                case 'G':
+                    startAnim = !startAnim;
                     break;
 
                 default:
@@ -524,14 +546,14 @@ void Initialize(void)
 
         "out vec3 out_fragPos;"                                                             \
         "out vec2 out_texCoord;"                                                            \
-        "out vec3 out_tangentLightPos;"                                                     \
+        "out vec3 out_tangentLightPos[8];"                                                     \
         "out vec3 out_tangentViewPos;"                                                      \
         "out vec3 out_tangentFragPos;"                                                      \
 
         "uniform mat4 u_modelMatrix;"                                                       \
         "uniform mat4 u_viewMatrix;"                                                        \
         "uniform mat4 u_projectionMatrix;"                                                  \
-        "uniform vec3 u_lightPos;"                                                          \
+        "uniform vec3 u_lightPos[8];"                                                          \
         "uniform vec3 u_viewPos;"                                                           \
 
         "void main(void)"                                                                   \
@@ -546,7 +568,10 @@ void Initialize(void)
         "   vec3 B = cross(N, T);"                                                          \
 
         "   mat3 TBN = transpose(mat3(T, B, N));"                                           \
-        "   out_tangentLightPos = TBN * u_lightPos;"                                        \
+        "   for (int i = 0; i < 8; i++)" \
+        "   {" \
+        "       out_tangentLightPos[i] = TBN * u_lightPos[i];"                              \
+        "   }" \
         "   out_tangentViewPos = TBN * u_viewPos;"                                          \
         "   out_tangentFragPos = TBN * out_fragPos;"                                        \
 
@@ -607,40 +632,59 @@ void Initialize(void)
 
         "in vec3 out_fragPos;"                                                                                      \
         "in vec2 out_texCoord;"                                                                                     \
-        "in vec3 out_tangentLightPos;"                                                                              \
+        "in vec3 out_tangentLightPos[8];"                                                                              \
         "in vec3 out_tangentViewPos;"                                                                               \
         "in vec3 out_tangentFragPos;"                                                                               \
 
         "out vec4 FragColor;"                                                                                       \
 
         "uniform vec3 u_viewPos;"                                                                                   \
-        "uniform vec3 u_lightPos;"
+
+        "float constant		= 1.000;" \
+        "float linear		= 0.80;" \
+        "float quadratic	= 0.82;" \
+
 
         "void main(void)"                                                                                           \
         "{"                                                                                                         \
-            //obtain normal from normal map in range [0, -1]
-        "   vec3 normal = texture(normal_texture, out_texCoord).rgb;"                                               \
+        "vec3 ambient;" \
+        "vec3 diffuse;" \
+        "vec3 specular;" \
+        "vec3 ads_light = vec3(0.0f,0.0f,0.0f);" \
+      
+        "for (int i = 0 ; i < 8; i++)" \
+        "{" \
+                //obtain normal from normal map in range [0, -1]
+            "   vec3 normal = texture(normal_texture, out_texCoord).rgb;"                                               \
 
-            //transform normal vector to range [-1, 1]
-        "   normal = normalize(normal * 2.0f - 1.0f);"                                                              \
-
-            //ambient
-        "   vec3 ambient = u_lightAmbient * u_matAmbient * texture(diffuse_texture, out_texCoord).rgb;"             \
+                //transform normal vector to range [-1, 1]
+            "   normal = normalize(normal * 2.0f - 1.0f);"                                                              \
+                //ambient
+            "   ambient = u_lightAmbient * u_matAmbient * texture(diffuse_texture, out_texCoord).rgb;"                  \
             
-            //diffuse
-        "   vec3 light_direction = normalize(out_tangentLightPos - out_tangentFragPos);"                            \
-        "   float diff = max(dot(light_direction, normal), 0.0f);"                                                  \
-        "   vec3 diffuse = u_lightDiffuse * u_matDiffuse * diff * texture(diffuse_texture, out_texCoord).rgb;"      \
+                //diffuse
+            "   vec3 light_direction = normalize(out_tangentLightPos[i] - out_tangentFragPos);"                         \
+            "   float diff = max(dot(light_direction, normal), 0.0f);"                                                  \
+            "   diffuse = u_lightDiffuse * u_matDiffuse * diff * texture(diffuse_texture, out_texCoord).rgb;"           \
 
-            //specular
-        "   vec3 view_direction = normalize(out_tangentViewPos - out_tangentFragPos);"                              \
-        "   vec3 reflect_direction = reflect(-light_direction, normal);"                                            \
-        "   vec3 halfway_direction = normalize(light_direction + view_direction);"                                  \
-        "   float spec = pow(max(dot(normal, halfway_direction), 0.0f), u_matShininess);"                           \
-        "   vec3 specular = u_lightSpecular * u_matSpecular * spec * texture(specular_texture, out_texCoord).rgb;"  \
+                //specular
+            "   vec3 view_direction = normalize(out_tangentViewPos - out_tangentFragPos);"                              \
+            "   vec3 reflect_direction = reflect(-light_direction, normal);"                                            \
+            "   vec3 halfway_direction = normalize(light_direction + view_direction);"                                  \
+            "   float spec = pow(max(dot(normal, reflect_direction), 0.0f), u_matShininess);"                           \
+            "   specular = u_lightSpecular * u_matSpecular * spec * texture(specular_texture, out_texCoord).rgb;"       \
+
+            "   float distance			= length(vec3(out_tangentLightPos[i]) - vec3(out_tangentFragPos));"              \
+            "   float attenuation		= 1.0 / (constant + linear * distance + quadratic * (distance * distance));"     \
+
+            "   ambient	    *= attenuation;" \
+            "   diffuse	    *= attenuation;" \
+            "   specular	*= attenuation;" \
+            "   ads_light   += ambient + diffuse + specular;"                                                         \
+        "}" \
 
         "   float alpha = texture(diffuse_texture, out_texCoord).a;"                                                \
-        "   vec3 ads_light = ambient + diffuse + specular;"                                                         \
+       
         "   FragColor = vec4(ads_light, alpha);"                                                                    \
         "}";                 
 
@@ -1231,6 +1275,7 @@ void Initialize(void)
     loadGLTexture(&floor_normal_texture, "textures/normal.png");
 
     loadGLTexture(&textureSmily, "textures/Smiley.bmp");
+    initialize_transition();
 
     //warm-up  call
     Resize(WIN_WIDTH, WIN_HEIGHT);
@@ -1291,11 +1336,17 @@ void Resize(int width, int height)
 
 void Display(void)
 {
+
+    camera.Front = vec3(-0.340060f, -0.144356f, -0.929258f);
+    camera.Up    = vec3(-0.049609f, 0.989526f, -0.135564f);
+    
     //variable declarations
     mat4 modelMatrix;
     mat4 viewMatrix;
 
     static float angle = 0.0f;
+    static float alpha_val = 1.0f;
+    static bool song_start = false;
 
     static float t = 0.0f;
 	t += 0.02f;
@@ -1307,6 +1358,12 @@ void Display(void)
 
     viewMatrix = mat4::identity();
     viewMatrix = camera.GetViewMatrix();
+
+    if (song_start == false)
+    {
+        PlaySound(MAKEINTRESOURCE(BACKGROUND_SONG), GetModuleHandle(NULL), SND_RESOURCE | SND_ASYNC);
+        song_start = true;
+    }
 
     glUseProgram(shaderProgramObject);
         //House Model
@@ -1322,10 +1379,24 @@ void Display(void)
 
         glUniform3f(viewPosUniform, 0.0f, 0.0f, 0.0f);
 
-        glUniform3f(lightPositionUniform, 10.0f, 10.0f, 10.0f);
-        glUniform3f(lightAmbientUniform, 0.3f, 0.3f, 0.3f);
-        glUniform3f(lightDiffuseUniform, 1.0f, 1.0f, 1.0f);
-        glUniform3f(lightSpecularUniform, 1.0f, 1.0f, 1.0f);
+        //glUniform3f(lightPositionUniform, 10.0f, 10.0f, 10.0f);
+        //glUniform3f(lightAmbientUniform, 0.3f, 0.3f, 0.3f);
+        //glUniform3f(lightDiffuseUniform, 1.0f, 1.0f, 1.0f);
+        //glUniform3f(lightSpecularUniform, 1.0f, 1.0f, 1.0f);
+        const GLfloat lightpos[24] = 
+        { -3.5f, 0.5f, -9.0f,
+          -2.0f, 0.5f, -9.0f,
+          -0.5f, 0.5f, -9.0f,
+            0.5f, 0.5f, -9.0f,
+            2.0f, 0.5f, -9.0f,
+            2.0f, 0.5f, -9.0f,
+            -2.0f, 0.0f, -12.0f,
+            2.2f, 0.0f, -12.0f };
+
+        glUniform3fv(lightPositionUniform, 8, lightpos);
+        glUniform3f(lightAmbientUniform, 0.4f, 0.25f, 0.0f);
+        glUniform3f(lightDiffuseUniform, 0.9f, 0.6f, 0.0f);
+        glUniform3f(lightSpecularUniform, 0.0f, 0.0f, 0.0f);
 
         House.Draw(shaderProgramObject);
 
@@ -1413,7 +1484,7 @@ void Display(void)
     glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE);
     glEnable(GL_POINT_SPRITE);
-	glPointSize(8);
+	glPointSize(7);
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, textureSmily);
 	glUniform1i(sTextureUniform, 0);
@@ -1421,7 +1492,7 @@ void Display(void)
     for(float i = 0.0f; i < 4.0f; i += 1.0f)
     {
         modelMatrix	= mat4::identity();
-        modelMatrix = vmath::translate(i + 0.65f, -1.6f, -10.7f);
+        modelMatrix = vmath::translate(i + 0.65f, -1.65f, -10.7f);
         scaleMatrix = scale(0.05f, 0.1f, 1.0f);
 
         modelMatrix = modelMatrix * scaleMatrix;
@@ -1446,10 +1517,25 @@ void Display(void)
 	glBindTexture(GL_TEXTURE_2D, 0);
     glDisable(GL_POINT_SPRITE);
     glDisable(GL_BLEND);
-
+    
 	glUseProgram(0);
 
+    display_transition(alpha_val);
+
     SwapBuffers(ghdc);
+
+    if (startAnim)
+    {
+        if (camera.Position[2] < -1.936526f)
+        {
+            camera.Position[2] += 0.0018f;
+        }
+    }
+
+    if (alpha_val > 0.0f)
+        alpha_val -= 0.003f;
+    else 
+        startAnim = true;
 }
 
 void UnInitialize(void)

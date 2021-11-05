@@ -1,4 +1,4 @@
 #include "RESOURCES.h"
 
-MYICON ICON YIP.ico
-
+MYICON              ICON    YIP.ico
+BACKGROUND_SONG     WAVE    theme.wav
